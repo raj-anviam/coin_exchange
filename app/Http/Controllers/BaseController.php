@@ -19,6 +19,8 @@ class BaseController extends Controller
             $wallets = Wallet::all();
             $loadedWallets = $this->bitcoind->listWallets()->get();
 
+            $loadedWallets = is_array($loadedWallets)? $loadedWallets: array($loadedWallets);
+
             foreach($wallets as $wallet) {
                 if(!in_array($wallet->name, $loadedWallets))
                     $this->bitcoind->loadWallet($wallet->name);

@@ -52,7 +52,7 @@
                 </div>
                 <div class="col-12 col-sm-9 col-lg-9 col-md-9 col-xl-9 pl-0">
                 <form>
-                    <input type="text" class="form-control form-width" readonly="readonly">
+                    <input type="text" class="form-control form-width final_address">
                 </form>
                 </div>
             </div>
@@ -139,11 +139,18 @@
             });
 
             $('.add-batch').click(function() {
+
+                if(!confirm('Have you copied the address ?'))
+                    return false;
+
+                let final_address = $('.final_address').val();
+                
                 $.ajax({
                     url: `{{ route('session.process-batch') }}`,
                     method: 'POST',
                     data : { 
-                        _token: "{{ csrf_token() }}" 
+                        _token: "{{ csrf_token() }}",
+                        final_address: final_address
                     },
                     success: async function(response) {
                         // console.log(response)

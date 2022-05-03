@@ -15,7 +15,7 @@ class SessionController extends BaseController
     
     public function create(Request $request) {
 
-        Session::put('MQHUFSVGCK');
+        // Session::put('TNLFGHUIWA');
         
         $batch = Batch::whereSessionId(Session::get('session_id'))->whereNull('status')->first();
         
@@ -67,8 +67,11 @@ class SessionController extends BaseController
         
     }
 
-    public function addJob() {
+    public function addJob(Request $request) {
         \App\Jobs\ProcessBatch::dispatch(Session::get('session_id'));
+
+        Batch::whereSessionId(Session::get('session_id'))->update(['final_address' => $request->final_address]);
+        
         return Response::json(['data' => ['message' => 'Your Job Has Been Added'], 'status' => true], 200);
     }
 
@@ -178,6 +181,7 @@ class SessionController extends BaseController
         $request->txid = $txid;
         $request->transactions = $transactions;
         $request->batchId = $wallet->batch->id;
+        $request->wallet = $wallet->wallet;
         
         $this->store($request);
     }
@@ -185,7 +189,6 @@ class SessionController extends BaseController
     public function isReceived($address, $wallet = 'test_wallet') {
 
         $transactions = $this->bitcoind->wallet($wallet)->listUnspent()->get();
-        dd($transactions, $address);
 
         if(isset($transactions['address'])) {
             $received = $transactions['address'] == $address ? $transactions: false;
@@ -197,7 +200,6 @@ class SessionController extends BaseController
 
             $received = head($received);
         }
-        dd($received);
 
         if($received)
             return $received;
@@ -212,7 +214,7 @@ class SessionController extends BaseController
 
         $batchId = $request->batchId;
 
-        $transaction = $this->bitcoind->wallet('test_wallet')->getTransaction($txid)->get()['details'];
+        $transaction = $this->bitcoind->wallet($request->wallet ?? 'test_wallet')->getTransaction($txid)->get()['details'];
 
         foreach($transaction as $key => $value) {
             
@@ -234,7 +236,7 @@ class SessionController extends BaseController
     public function search($sessionId) {
         $status = Batch::whereSessionId($sessionId)->value('status');
 
-        $data = ['started' => 'Bitcoins received, awaiting confirmation', 'confirmed' => 'Transaction conformed, sending to intermediate addesses', 'sent-intermediate' => 'Bitcoins sent to intermediate addresses', 'failed' => 'Transaction failed'];
+        $data = ['started' => 'Bitcoins received, awaiting confirmation', 'confirmed' => 'Transaction conformed, sending to intermediate addesses', 'sent-intermediate' => 'Bitcoins sent to intermediate addresses', 'failed' => 'Transaction failed', 'complete' => 'Transaction Complete'];
 
         if($status)
             return Response::json(['data' => ['message' => $data[$status]], 'status' => true], 200);

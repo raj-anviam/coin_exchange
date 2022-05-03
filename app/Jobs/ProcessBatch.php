@@ -44,25 +44,39 @@ class ProcessBatch implements ShouldQueue
             $this->bitcoind = new BitcoinClient('http://someuser:somepassword@localhost:18332/');
             $session = new SessionController;
 
-            if(is_null($batch->status))
-                do {
+            if(is_null($batch->status)) {
+
+                // do {
                     $received = $this->receiveTransaction($batch->address);
                     if($received) {
                         // update sessions - transaction recieved, awaiting confirmation
                         Batch::where('session_id', $sessionId)->update(['status' => 'started']);
                     }
+                    
+                // }
+                // while(!$received);
+                
+                // recursion
+                sleep(10);
+                \App\Jobs\ProcessBatch::dispatch($sessionId);
+                return true;
+            }
 
-                }
-                while(!$received);
+            if($batch->status == 'started') {
 
-            if($batch->status == 'started')
-                do {
+                // do {
                     // check btc recieved
                     $balance = $this->confirmTransaction($sessionId, $session);
-                }
-                while(!$balance);
+                // }
+                // while(!$balance);
+                
+                // recursion
+                sleep(10);
+                \App\Jobs\ProcessBatch::dispatch($sessionId);
+                return true;
+            }
 
-            if($batch->status == 'sent-intermediate') {
+            if($batch->status == 'received' || $batch->status == 'sent-intermediate') {
 
                 // check btc recieved and confirmed in intermediate wallets
                 $wallets = $batch->intermediateAddrersses;
@@ -99,11 +113,14 @@ class ProcessBatch implements ShouldQueue
                 }
             }
 
+            Batch::where('session_id', $this->sessionId)->update(['status' => 'complete']);
+
             return true;
         }
         catch(\Exception $e) {  
             \Log::error($e);
             Session::flash('error', $e->getMessage());
+            $this->fail($e);
         }
     }
 
@@ -155,7 +172,7 @@ class ProcessBatch implements ShouldQueue
             return $balance;
         }
 
-        sleep(10);
+        // sleep(10);
         error_log('bitcoins not confirmed, retrying in 10 seconds ..............');
         return false;
     }
