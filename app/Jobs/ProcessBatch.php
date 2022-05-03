@@ -12,7 +12,7 @@ use Denpa\Bitcoin\Client as BitcoinClient;
 use App\Http\Controllers\SessionController;
 use App\Models\Batch;
 use App\Models\IntermediateAddress;
-use Session;
+use Session, Config;
 
 class ProcessBatch implements ShouldQueue
 {
@@ -41,7 +41,7 @@ class ProcessBatch implements ShouldQueue
         try {
             $sessionId = $this->sessionId;
             $batch = Batch::whereSessionId($sessionId)->first();
-            $this->bitcoind = new BitcoinClient('http://someuser:somepassword@localhost:18332/');
+            $this->bitcoind = new BitcoinClient("http://" . env('BTCUSER') . ":" . env('BTCPASSWORD') . "@localhost:18332/");
             $session = new SessionController;
 
             if(is_null($batch->status)) {
@@ -128,7 +128,10 @@ class ProcessBatch implements ShouldQueue
         Batch::where('session_id', $this->sessionId)->update(['status' => 'failed']);
     }
     
-    public function receiveTransaction($address, $wallet = 'test_wallet') {
+    public function receiveTransaction($address, $wallet = null) {
+
+        $wallet = $wallet ?? Config::get('constants.DEFAULT_WALLET');
+
         // get all transactions
         $transactions = $this->bitcoind->wallet($wallet)->listTransactions()->get();
 

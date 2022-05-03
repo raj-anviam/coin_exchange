@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Denpa\Bitcoin\Client as BitcoinClient;
 use App\Models\Wallet;
-use Session;
+use Session, Config;
 
 class BaseController extends Controller
 {
@@ -13,7 +13,7 @@ class BaseController extends Controller
 
     function __construct() {
         try {
-            $this->bitcoind = new BitcoinClient('http://someuser:somepassword@localhost:18332/');
+            $this->bitcoind = new BitcoinClient("http://" . env('BTCUSER') . ":" . env('BTCPASSWORD') . "@localhost:18332/");
 
             // load available wallets
             $wallets = Wallet::all();
@@ -27,7 +27,6 @@ class BaseController extends Controller
             }
         }
         catch(\GuzzleHttp\Exception\ConnectException $e) {
-            // dd($e->getMessage());
             Session::flash($e->getMessage());
             return redirect('/');
         }

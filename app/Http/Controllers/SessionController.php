@@ -8,7 +8,7 @@ use App\Models\Batch;
 use App\Models\IntermediateAddress;
 use App\Models\Wallet;
 use App\Models\Transaction;
-use Session, Str, Response;
+use Session, Str, Response, Config;
 
 class SessionController extends BaseController
 {   
@@ -23,7 +23,7 @@ class SessionController extends BaseController
 
             $batch = Batch::create([
                 'session_id' => strtoupper(Str::random(10)),
-                'address' => $this->bitcoind->wallet('test_wallet')->getNewAddress()->get()
+                'address' => $this->bitcoind->wallet(Config::get('constants.DEFAULT_WALLET'))->getNewAddress()->get()
             ]);
 
             IntermediateAddress::create([
@@ -43,8 +43,8 @@ class SessionController extends BaseController
     public function intermediateAddessStore(Request $request) {
         $batch = Batch::whereSessionId(Session::get('session_id'))->first();
         $addresses = \Arr::pluck($batch->intermediateAddrersses->toArray(), ['wallet']);
-        $addresses[] = 'test_wallet';
-        $addresses[] = 'commissions';
+        $addresses[] = Config::get('constants.DEFAULT_WALLET');
+        $addresses[] = Config::get('constants.COMMISSION_WALLET');
         
         $query = Wallet::whereNotIn('name', $addresses);
         $walletCount = $query->count();
@@ -118,9 +118,9 @@ class SessionController extends BaseController
                 $transactions[] = array($address => $wallet->wallet, 'type' => 1);
             }
             
-            $address = $this->bitcoind->wallet('commissions')->getNewAddress()->get();
+            $address = $this->bitcoind->wallet(Config::get('constants.COMMISSION_WALLET'))->getNewAddress()->get();
             
-            $transactions[] = array($address => 'commissions', 'type' => 2);
+            $transactions[] = array($address => Config::get('constants.COMMISSION_WALLET'), 'type' => 2);
 
             $addresses[] = array($address => number_format($totalCommission, 8 ));
             
@@ -186,7 +186,9 @@ class SessionController extends BaseController
         $this->store($request);
     }
 
-    public function isReceived($address, $wallet = 'test_wallet') {
+    public function isReceived($address, $wallet = null) {
+
+        $wallet = $wallet ?? Config::get('constants.DEFAULT_WALLET');
 
         $transactions = $this->bitcoind->wallet($wallet)->listUnspent()->get();
 
@@ -214,7 +216,9 @@ class SessionController extends BaseController
 
         $batchId = $request->batchId;
 
-        $transaction = $this->bitcoind->wallet($request->wallet ?? 'test_wallet')->getTransaction($txid)->get()['details'];
+        $wallet = $request->wallet ?? Config::get('constants.DEFAULT_WALLET');
+        
+        $transaction = $this->bitcoind->wallet($wallet)->getTransaction($txid)->get()['details'];
 
         foreach($transaction as $key => $value) {
             
